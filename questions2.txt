@@ -1,8 +1,0 @@
-FreeFormQuestion|1|1+1|2|True
-FreeFormQuestion|2|2+2|4|True
-FreeFormQuestion|3|3+3|6|True
-FreeFormQuestion|4|4+4|8|True
-FreeFormQuestion|5|1+2|3|True
-FreeFormQuestion|6|2+3|5|True
-FreeFormQuestion|7|4+5|9|True
-FreeFormQuestion|8|3+4|7|True

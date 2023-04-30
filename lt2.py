@@ -11,74 +11,102 @@ class Question:
         self.text = text
         self.answer = answer
         self.is_active = is_active
-        self.times_shown = 0
-        self.times_correct = 0
-        self.times_incorrect = 0
+        self.times_shown_practice = 0
+        self.times_correct_practice = 0
+        self.times_shown_test = 0
+        self.times_correct_test = 0
+
 
     def show_question(self):
         print(self.text)
 
     def check_answer(self, user_answer):
-        is_correct = user_answer.strip().lower() == self.answer.strip().lower()
-        if is_correct:
-            self.times_correct += 1
-        else:
-            self.times_incorrect += 1
-        self.times_shown += 1
-        return is_correct
+        return user_answer.lower() == self.answer.lower()
 
     def show_statistics(self):
         print(f"Question ID: {self.qid}")
         print(f"Active: {self.is_active}")
         print(f"Question Text: {self.text}")
-        print(f"Times Shown: {self.times_shown}")
-        print(f"Times Correct: {self.times_correct}")
-        print(f"Percentage Correct: {self.get_percentage_correct()}%")
+        print(f"Times Shown (Practice): {self.times_shown_practice}")
+        print(f"Times Correct (Practice): {self.times_correct_practice}")
+        print(f"Percentage Correct (Practice): {self.get_percentage_correct(is_test_mode=False)}%")
+        print(f"Times Shown (Test): {self.times_shown_test}")
+        print(f"Times Correct (Test): {self.times_correct_test}")
+        print(f"Percentage Correct (Test): {self.get_percentage_correct(is_test_mode=True)}%")
 
-    def get_percentage_correct(self):
-        if self.times_shown == 0:
-            return 0
-        return round(self.times_correct / self.times_shown * 100, 2)
+
+    def get_percentage_correct(self, is_test_mode):
+        if is_test_mode:
+            if self.times_shown_test == 0:
+                return 0
+            return round(self.times_correct_test / self.times_shown_test * 100, 2)
+        else:
+            if self.times_shown_practice == 0:
+                return 0
+            return round(self.times_correct_practice / self.times_shown_practice * 100, 2)
+
+    
+    def update_stats(self, is_correct, is_test_mode):
+        if is_test_mode:
+            self.times_shown_test += 1
+            if is_correct:
+                self.times_correct_test += 1
+        else:
+            self.times_shown_practice += 1
+            if is_correct:
+                self.times_correct_practice += 1
+        self.times_shown = self.times_shown_test + self.times_shown_practice
+        self.percent_correct = self.get_percentage_correct(is_test_mode)
+
+
 
 ########################################################################################################
 
 #This is a subclass of Question that represents a question where the user is expected to enter a free-form answer.
 class FreeFormQuestion(Question):
+    next_qid = 1
+
     def __init__(self, qid, text, answer, is_active=True):
         super().__init__(qid, text, answer, is_active)
+        FreeFormQuestion.next_qid += 1
+
 
     def show_question(self):
         print(self.text)
 
     def check_answer(self, user_answer):
-        return user_answer.strip().lower() == self.answer.strip().lower()
+        return user_answer.lower() == self.answer.lower()
     
-    def update_stats(self, is_correct):
-        if is_correct:
-            self.times_correct += 1
-        else:
-            self.times_incorrect += 1
+    def update_stats(self, is_correct, is_test_mode):
+        super().update_stats(is_correct, is_test_mode)
+        self.times_correct_practice += is_correct and not is_test_mode
+        self.times_correct_test += is_correct and is_test_mode
 
     def ask_freeform_question(self):
         self.show_question()
         user_answer = input("Enter your answer: ")
         if self.check_answer(user_answer):
             print("Correct!")
-            self.times_correct += 1
+            self.update_stats(True, False)
         else:
             print(f"Incorrect. The correct answer is: {self.answer}")
-            self.times_incorrect += 1
-    
+            self.update_stats(False, False)
 ###############################################################################################################
 
 #This is another subclass of Question that represents a multiple-choice 
 #question where the user is presented with a set of options to choose from.
 class QuizQuestion(Question):
+    next_qid = 1
+
     def __init__(self, qid, text, answer, options, is_active=True):
         super().__init__(qid, text, answer, is_active)
         self.options = options
-        self.times_correct = 0
-        self.times_incorrect = 0
+        self.times_correct_practice = 0
+        self.times_shown_practice = 0
+        self.times_correct_test = 0
+        self.times_shown_test = 0
+        QuizQuestion.next_qid += 1
+
     
     def show_question(self):
         print(self.text)
@@ -86,31 +114,22 @@ class QuizQuestion(Question):
             print(f"{i+1}. {option}")
     
     def check_answer(self, user_answer):
-        if isinstance(self, Question):
-            return user_answer.strip().lower() == self.answer.strip().lower()
-        elif isinstance(self, QuizQuestion):
-            if user_answer.isdigit() and int(user_answer) <= len(self.options):
-                return self.options[int(user_answer) - 1].strip().lower() == self.answer.strip().lower()
-            else:
-                return False
+        return user_answer.lower() == self.answer.lower()
             
-    def update_stats(self, is_correct):
-        if is_correct:
-            self.times_correct += 1
-        else:
-            self.times_incorrect += 1
-
-    
+    def update_stats(self, is_correct, is_test_mode):
+        super().update_stats(is_correct, is_test_mode)
+        self.times_correct_practice += is_correct and not is_test_mode
+        self.times_correct_test += is_correct and is_test_mode
         
     def ask_quiz_question(self):
         self.show_question()
         user_answer = input("Enter the correct option number: ")
         if self.check_answer(user_answer):
             print("Correct!")
-            self.times_correct += 1
+            self.update_stats(True, False)
         else:
             print(f"Incorrect. The correct answer is: {self.answer}")
-            self.times_incorrect += 1
+            self.update_stats(False, False)
 
 ##############################################################################################################################
 
@@ -120,6 +139,7 @@ class Statistics:
     def __init__(self, questions):
         self.questions = questions
         self.stats = {}
+        self.disabled_questions = []
 
     def update_stats(self, question, correct):
         if question.qid not in self.stats:
@@ -130,13 +150,14 @@ class Statistics:
 
     def get_statistics(self):
         for question in self.questions:
-            num_shown = question.times_correct + question.times_incorrect
-            if num_shown > 0:
-                percent_correct = (question.times_correct / num_shown) * 100
-            else:
-                percent_correct = 0
-            print(f"ID: {question.qid} | Active: {question.is_active} | Text: {question.text}")
-            print(f"Times shown: {num_shown} | Percent correct: {percent_correct:.2f}%\n")
+            if question.is_active:
+                num_shown_practice = question.times_shown_practice
+                percent_correct_practice = question.get_percentage_correct(is_test_mode=False)
+                num_shown_test = question.times_shown_test
+                percent_correct_test = question.get_percentage_correct(is_test_mode=True)
+                print(f"ID: {question.qid} | Active: {question.is_active} | Text: {question.text}")
+                print(f"Times shown (Practice): {num_shown_practice} | Percent correct (Practice): {percent_correct_practice:.2f}%")
+                print(f"Times shown (Test): {num_shown_test} | Percent correct (Test): {percent_correct_test:.2f}%\n")
 
 ###########################################################################################################################
 
@@ -150,6 +171,7 @@ class LearningTool:
         self.disabled_questions = []
         self.load_disabled_questions()
         self.practice_question_count = 0
+        self.statistics = Statistics(self.questions)
 
     def run(self):
         print("Welcome to the Learning Tool!")
@@ -165,9 +187,9 @@ class LearningTool:
             if choice == "1":
                 self.add_question()
             elif choice == "2":
-                self.view_statistics()
+                self.statistics.get_statistics()
             elif choice == "3":
-                self.disable_enable_questions()
+                self.toggle_question_active_status()
             elif choice == "4":
                 self.practice_mode()
             elif choice == "5":
@@ -176,8 +198,8 @@ class LearningTool:
                 print("Goodbye!")
                 break
             else:
-                print("Invalid choice.")
-
+                print("Invalid choice.")    
+            
         self.save_questions()
         self.save_disabled_questions()
 
@@ -196,23 +218,31 @@ class LearningTool:
                     break
                 options.append(option)
             answer = input("Enter answer: ")
-            self.questions.append(QuizQuestion(len(self.questions) + 1, text, answer, options))
+            qid = QuizQuestion.next_qid
+            question = QuizQuestion(qid, text, answer, options)
+            QuizQuestion.next_qid += 1
+            save_question_to_file(question)
             print("Quiz question added successfully.")
         elif question_type == "2":
             text = input("Enter question: ")
             answer = input("Enter answer: ")
-            self.questions.append(FreeFormQuestion(len(self.questions) + 1, text, answer))
+            qid = FreeFormQuestion.next_qid
+            question = FreeFormQuestion(qid, text, answer)
+            FreeFormQuestion.next_qid += 1
+            save_question_to_file(question)
             print("Free-form question added successfully.")
         else:
             print("Invalid choice.")
 
+        QuizQuestion.next_qid += 1
+        FreeFormQuestion.next_qid += 1
+
         self.save_questions()
 
-
-    def view_statistics(self):
+    def get_statistics(self):
         self.stats.get_statistics()
-
-    def disable_enable_questions(self):
+        
+    def toggle_question_active_status(self):
         print("Which question would you like to disable/enable?")
         question_id = int(input("Enter question ID: "))
         question = self.get_question_by_id(question_id)
@@ -233,7 +263,6 @@ class LearningTool:
 
         self.save_questions()
         self.save_disabled_questions()
-
 
     def practice_mode(self):
         active_questions = self.get_active_questions()
@@ -258,16 +287,6 @@ class LearningTool:
 
             question.update_stats(is_correct)
             self.save_questions()
-    
-    def weighted_choice(self, choices):
-        weights = [q.times_incorrect + 1 for q in choices]
-        total_weight = sum(weights)
-        rand_num = random.uniform(0, total_weight)
-        weight_sum = 0
-        for i, choice in enumerate(choices):
-            weight_sum += weights[i]
-            if rand_num <= weight_sum:
-                return choice
 
     def test_mode(self):
         active_questions = self.get_active_questions()
@@ -288,13 +307,13 @@ class LearningTool:
             num_questions = input(f"Please enter a valid number of questions (1 - {len(active_questions)}): ")
         num_questions = int(num_questions)
         
+        random.shuffle(quiz_questions)
+        random.shuffle(freeform_questions)
+        
         quiz_question_count = min(num_questions // 2, len(quiz_questions))
         freeform_question_count = num_questions - quiz_question_count
         
-        quiz_questions = random.sample(quiz_questions, quiz_question_count)
-        freeform_questions = random.sample(freeform_questions, freeform_question_count)
-        
-        selected_questions = quiz_questions + freeform_questions
+        selected_questions = quiz_questions[:quiz_question_count] + freeform_questions[:freeform_question_count]
         random.shuffle(selected_questions)
         
         score = 0
@@ -332,45 +351,31 @@ class LearningTool:
         print(f"\nTest finished. Your score: {score}/{num_questions} ({score_percentage:.2f}%).")
         self.save_test_result(score_percentage)
 
-        
     def load_questions(self):
-        try:
-            with open("questions2.txt", "r") as f:
-                data = f.readlines()
-        except FileNotFoundError:
-            with open("questions2.txt", "w") as f:
-                print("Created new questions2.txt file.")
-            return
-            
-        for i, line in enumerate(data):
-            line = line.strip()
-            if line.startswith("QuizQuestion"):
-                fields = line.split("|")
-                if len(fields) == 5:
-                    qid, text, answer, is_active, options_str = fields
-                    options = options_str.split(",")
-                    self.questions.append(QuizQuestion(int(qid), text, answer, options, is_active == "True"))
+        with open("questions.txt", "r") as f:
+            for line in f:
+                question_data = line.strip().split("|")
+                if question_data[0] == "QuizQuestion":
+                    qid, text, answer, is_active, options = question_data[1:]
+                    options = options.split(",")
+                    q = QuizQuestion(int(qid), text, answer, options, is_active=="True")
+                elif question_data[0] == "FreeFormQuestion":
+                    qid, text, answer, is_active = question_data[1:]
+                    q = FreeFormQuestion(int(qid), text, answer, is_active=="True")
                 else:
-                    print(f"Skipping line {i} in questions2.txt: {line}")
-            elif line.startswith("FreeFormQuestion"):
-                fields = line.split("|")
-                if len(fields) == 4:
-                    qid, text, answer, is_active = fields
-                    self.questions.append(FreeFormQuestion(int(qid), text, answer, is_active == "True"))
-                else:
-                    print(f"Skipping line {i} in questions2.txt: {line}")
-            else:
-                print(f"Skipping line {i} in questions2.txt: {line}")
+                    continue
+                self.questions.append(q)
+
 
     def load_disabled_questions(self):
         try:
-            with open("disabled_questions2.txt", "r") as f:
+            with open("disabled_questions.txt", "r") as f:
                 data = f.readlines()
             for line in data:
-                self.disabled_questions.append(int(line.strip()))
+                qid = int(line.strip())
+                if qid not in self.disabled_questions:
+                    self.disabled_questions.append(qid)
         except FileNotFoundError:
-            with open("disabled_questions2.txt", "w") as f:
-                pass
             return
 
 
@@ -383,8 +388,10 @@ class LearningTool:
     def disable_question(self, qid):
         question = self.get_question_by_id(qid)
         if question is None:
+            print("Error: Invalid question ID.")
             return False
         if qid in self.disabled_questions:
+            print("Error: Question is already disabled.")
             return False
         question.is_active = False
         self.disabled_questions.append(qid)
@@ -394,8 +401,10 @@ class LearningTool:
     def enable_question(self, qid):
         question = self.get_question_by_id(qid)
         if question is None:
+            print("Error: Invalid question ID.")
             return False
         if qid not in self.disabled_questions:
+            print("Error: Question is already enabled.")
             return False
         question.is_active = True
         self.disabled_questions.remove(qid)
@@ -403,7 +412,7 @@ class LearningTool:
         return True
     
     def save_questions(self):
-        with open("questions2.txt", "w") as f:
+        with open("questions.txt", "a") as f:
             for question in self.questions:
                 if isinstance(question, QuizQuestion):
                     options_str = ",".join([str(option) for option in question.options])
@@ -412,8 +421,19 @@ class LearningTool:
                     line = f"FreeFormQuestion|{question.qid}|{question.text}|{question.answer}|{question.is_active}\n"
                 f.write(line)
 
+    def save_question_to_file(questions):
+        with open("questions.txt", "w") as f:
+            for question in questions:
+                if isinstance(question, QuizQuestion):
+                    options_str = ",".join([str(option) for option in question.options])
+                    line = f"QuizQuestion|{question.qid}|{question.text}|{question.answer}|{question.is_active}|{options_str}\n"
+                elif isinstance(question, FreeFormQuestion):
+                    line = f"FreeFormQuestion|{question.qid}|{question.text}|{question.answer}|{question.is_active}\n"
+                f.write(line)
+
+
     def save_disabled_questions(self):
-        with open("disabled_questions2.txt", "w") as f:
+        with open("disabled_questions.txt", "w") as f:
             for qid in self.disabled_questions:
                 f.write(str(qid) + "\n")
 
@@ -426,8 +446,8 @@ class LearningTool:
 
     def weighted_choice(self, choices):
         weights = [q.times_incorrect + 1 for q in choices]
-        total = sum(weights)
-        threshold = random.uniform(0, total)
+        total_weight = sum(weights)
+        threshold = random.uniform(0, total_weight)
         for i, w in enumerate(weights):
             threshold -= w
             if threshold <= 0:
@@ -439,8 +459,6 @@ class LearningTool:
         timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
         with open("results.txt", "a") as f:
             f.write(f"{timestamp} | Score: {score_percentage:.2f}%\n")
-
-    
 
 ###############################################################################################
 
