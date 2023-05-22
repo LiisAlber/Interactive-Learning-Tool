@@ -1,0 +1,15 @@
+1|True|1+1|2|FreeformQuestion
+2|True|2+2|4,5,6|4|QuizQuestion
+3|True|3+3|5,6,7|6|QuizQuestion
+4|True|4+4|8|FreeformQuestion
+5|True|2*6|12|FreeformQuestion
+6|False|1+2|3|FreeformQuestion
+7|True|4-4|4,3,0|0|QuizQuestion
+8|True|3-3|0|FreeformQuestion
+9|True|7-6|1,2,3|1|QuizQuestion
+10|True|6-6|0,9,8|0|QuizQuestion
+11|False|2+7|9|FreeformQuestion
+12|True|8-4|4|FreeformQuestion
+13|True|7*2|13,14,15|14|QuizQuestion
+14|False|two times two|four|FreeformQuestion
+15|True|4-2|2,3,4|2|QuizQuestion
